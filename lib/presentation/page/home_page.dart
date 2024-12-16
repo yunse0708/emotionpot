@@ -1,3 +1,4 @@
+import 'package:emotionpot/presentation/page/home.dart';
 import 'package:flutter/material.dart';
 import 'package:emotionpot/app/config/app_color.dart';
 import 'package:emotionpot/app/config/app_text_styles.dart';
@@ -50,7 +51,7 @@ class HomePage extends StatelessWidget {
                       // Signup 페이지로 이동
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => Signup()),
+                        MaterialPageRoute(builder: (context) => HomeScreen()),
                       );
                     },
                     style: ElevatedButton.styleFrom(

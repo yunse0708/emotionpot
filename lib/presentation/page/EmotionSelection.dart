@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:emotionpot/presentation/page/write_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'write_page.dart';
 
-class EmotionSelectionPage extends StatefulWidget {
+class EmotionSelectionPage extends ConsumerStatefulWidget {
   const EmotionSelectionPage({super.key});
 
   @override
-  State<EmotionSelectionPage> createState() => _EmotionSelectionPageState();
+  ConsumerState<EmotionSelectionPage> createState() =>
+      _EmotionSelectionPageState();
 }
 
-class _EmotionSelectionPageState extends State<EmotionSelectionPage> {
+class _EmotionSelectionPageState extends ConsumerState<EmotionSelectionPage> {
   final emotions = [
     {'label': '화남', 'image': 'assets/img/angry2.png'},
     {'label': '피곤한', 'image': 'assets/img/tired.png'},
@@ -25,11 +27,81 @@ class _EmotionSelectionPageState extends State<EmotionSelectionPage> {
   ];
 
   String? selectedEmotion;
+  int _flowerStage = 1; // 꽃 상태를 위한 변수 (초기값은 1)
 
-  // 현재 날짜 반환
-  String getCurrentDate() {
+  // 긍정적인 감정 목록
+  final List<String> positiveEmotions = [
+    '행복',
+    '좋은',
+    '평온',
+    '그냥',
+  ];
+
+  bool _hasWrittenToday = false; // 오늘 일기를 작성했는지 여부
+
+  // 꽃 상태를 업데이트하는 함수
+  Future<void> _updateFlowerState(String emotion) async {
+    final prefs = await SharedPreferences.getInstance();
+    int currentFlowerStage = prefs.getInt('flowerStage') ?? 1;
+
+    // 긍정적인 감정을 선택했을 때 꽃 상태가 증가하도록 처리
+    if (positiveEmotions.contains(emotion)) {
+      currentFlowerStage =
+          currentFlowerStage < 4 ? currentFlowerStage + 1 : 4; // 꽃이 성장하도록
+    }
+
+    // SharedPreferences에 새로운 꽃 상태 저장
+    await prefs.setInt('flowerStage', currentFlowerStage);
+
+    // 상태를 화면에 반영
+    setState(() {
+      _flowerStage = currentFlowerStage;
+    });
+  }
+
+  // 현재 날짜를 반환하는 함수
+  String _getCurrentDate() {
     final now = DateTime.now();
-    return '${now.year}.${now.month.toString().padLeft(2, '0')}.${now.day.toString().padLeft(2, '0')}';
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFlowerStage();
+    _checkIfWrittenToday();
+  }
+
+  // SharedPreferences에서 꽃 상태를 불러오는 함수
+  Future<void> _loadFlowerStage() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _flowerStage = prefs.getInt('flowerStage') ?? 1; // 기본값은 1
+    });
+  }
+
+  // 오늘 일기를 작성했는지 여부를 확인하는 함수
+  Future<void> _checkIfWrittenToday() async {
+    final prefs = await SharedPreferences.getInstance();
+    String today = _getCurrentDate();
+    String? lastWrittenDate = prefs.getString('lastWrittenDate');
+
+    if (lastWrittenDate == today) {
+      setState(() {
+        _hasWrittenToday = true;
+      });
+    }
+  }
+
+  // 일기 작성 후 상태 업데이트
+  Future<void> _markTodayAsWritten() async {
+    final prefs = await SharedPreferences.getInstance();
+    String today = _getCurrentDate();
+    await prefs.setString('lastWrittenDate', today);
+
+    setState(() {
+      _hasWrittenToday = true;
+    });
   }
 
   @override
@@ -39,6 +111,14 @@ class _EmotionSelectionPageState extends State<EmotionSelectionPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
+        title: Text(
+          _getCurrentDate(), // 날짜를 AppBar에 표시
+          style: const TextStyle(
+            fontFamily: 'NanumPen',
+            fontSize: 18,
+            color: Colors.black,
+          ),
+        ),
       ),
       backgroundColor: Colors.white,
       body: Column(
@@ -55,28 +135,19 @@ class _EmotionSelectionPageState extends State<EmotionSelectionPage> {
               ),
             ),
           ),
+          // 날짜를 '오늘 당신의 감정은 어땠나요?' 아래에 추가
           Padding(
-            padding: const EdgeInsets.only(left: 20.0, top: 5.0, bottom: 20.0),
-            child: Row(
-              children: [
-                SvgPicture.asset(
-                  'assets/img/calendar.svg',
-                  width: 24,
-                  height: 24,
-                  color: Colors.black54,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  getCurrentDate(),
-                  style: const TextStyle(
-                    fontFamily: 'NanumPen',
-                    fontSize: 18,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.only(left: 20.0, top: 8.0),
+            child: Text(
+              _getCurrentDate(),
+              style: const TextStyle(
+                fontFamily: 'NanumPen',
+                fontSize: 22,
+                color: Colors.black87,
+              ),
             ),
           ),
+          // 감정 선택 UI
           Expanded(
             child: GridView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -91,15 +162,43 @@ class _EmotionSelectionPageState extends State<EmotionSelectionPage> {
                 final emotion = emotions[index];
                 final isSelected = selectedEmotion == emotion['label'];
 
-                return EmotionTile(
-                  label: emotion['label'] as String,
-                  imagePath: emotion['image'] as String,
-                  isSelected: isSelected,
+                return GestureDetector(
                   onTap: () {
                     setState(() {
                       selectedEmotion = emotion['label'];
                     });
+                    // 감정을 선택하면 꽃 상태 업데이트
+                    _updateFlowerState(emotion['label'] as String);
                   },
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 73,
+                        width: 87,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color:
+                                isSelected ? Colors.green : Colors.transparent,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Image.asset(
+                          emotion['image'] as String,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        emotion['label'] as String,
+                        style: TextStyle(
+                          fontFamily: 'NanumPen',
+                          fontSize: 22,
+                          color: isSelected ? Colors.green : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -112,23 +211,33 @@ class _EmotionSelectionPageState extends State<EmotionSelectionPage> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor:
-                      selectedEmotion == null ? null : const Color(0xFF059669),
+                      _hasWrittenToday ? Colors.grey : const Color(0xFF059669),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(5),
                   ),
                 ),
-                onPressed: selectedEmotion == null
-                    ? null
-                    : () {
-                        Navigator.push(
+                onPressed: _hasWrittenToday
+                    ? () {
+                        // 오늘 이미 일기를 작성했다는 알림
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('오늘 이미 일기를 작성하였습니다.'),
+                          ),
+                        );
+                      }
+                    : () async {
+                        // 일기 작성 페이지로 이동
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => WritePage(
                               selectedEmotion: selectedEmotion!,
-                              date: getCurrentDate(), // 날짜 전달
+                              date: _getCurrentDate(),
                             ),
                           ),
                         );
+                        // 일기 작성 후 상태 업데이트
+                        _markTodayAsWritten();
                       },
                 child: const Text(
                   '다음',
@@ -140,59 +249,6 @@ class _EmotionSelectionPageState extends State<EmotionSelectionPage> {
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class EmotionTile extends StatelessWidget {
-  final String label;
-  final String imagePath;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const EmotionTile({
-    super.key,
-    required this.label,
-    required this.imagePath,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Opacity(
-            opacity: isSelected ? 1.0 : 0.5,
-            child: Container(
-              height: 73,
-              width: 87,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: isSelected ? Colors.green : Colors.transparent,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'NanumPen',
-              fontSize: 22,
-              color: isSelected ? Colors.green : Colors.black87,
             ),
           ),
         ],

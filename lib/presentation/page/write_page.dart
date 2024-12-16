@@ -1,6 +1,6 @@
+import 'package:emotionpot/presentation/page/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:emotionpot/data/models/diary_model.dart';
 import 'package:emotionpot/data/providers/diary_provider.dart';
@@ -9,8 +9,11 @@ class WritePage extends ConsumerStatefulWidget {
   final String selectedEmotion; // 선택된 감정
   final String date; // 선택된 날짜
 
-  const WritePage(
-      {super.key, required this.selectedEmotion, required this.date});
+  const WritePage({
+    super.key,
+    required this.selectedEmotion,
+    required this.date,
+  });
 
   @override
   ConsumerState<WritePage> createState() => _WritePageState();
@@ -19,37 +22,41 @@ class WritePage extends ConsumerStatefulWidget {
 class _WritePageState extends ConsumerState<WritePage> {
   final TextEditingController _contentController = TextEditingController();
 
-  // 저장 버튼 클릭 시 동작
-  void saveDiary() {
+  // 일기 저장 함수
+  Future<void> saveDiary() async {
     final content = _contentController.text.trim();
-
     if (content.isEmpty) {
-      showSnackBar('내용을 입력해주세요.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('내용을 입력해주세요.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
 
-    final diary = Diary(
+    // Diary 모델 생성
+    final newDiary = Diary(
       date: widget.date,
       emotion: widget.selectedEmotion,
       content: content,
     );
 
-    // Riverpod 상태 업데이트
-    ref.read(diaryProvider.notifier).addDiary(diary);
+    // diaryProvider를 통해 일기 저장
+    await ref.read(diaryProvider.notifier).addDiary(newDiary);
 
-    showSnackBar('일기가 저장되었습니다!');
-    Navigator.pop(context); // 저장 후 이전 화면으로 돌아가기
-  }
-
-  // SnackBar 표시 함수
-  void showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(fontFamily: 'NanumPen'),
-        ),
+      const SnackBar(
+        content: Text('일기가 저장되었습니다!'),
         behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    // 홈 화면으로 이동
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HomeScreen(),
       ),
     );
   }
@@ -80,15 +87,8 @@ class _WritePageState extends ConsumerState<WritePage> {
             const SizedBox(height: 10),
             Row(
               children: [
-                SvgPicture.asset(
-                  'assets/img/calendar.svg',
-                  width: 24,
-                  height: 24,
-                  color: Colors.black54,
-                ),
-                const SizedBox(width: 5),
                 Text(
-                  widget.date, // 선택된 날짜를 표시
+                  widget.date, // 날짜 표시
                   style: const TextStyle(
                     fontFamily: 'NanumPen',
                     fontSize: 18,
@@ -161,11 +161,5 @@ class _WritePageState extends ConsumerState<WritePage> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _contentController.dispose();
-    super.dispose();
   }
 }

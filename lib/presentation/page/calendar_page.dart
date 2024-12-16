@@ -1,10 +1,10 @@
+// calendar_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:emotionpot/data/models/diary_model.dart';
 import 'package:emotionpot/data/providers/diary_provider.dart';
-
-import 'write_page.dart';
+import 'diary_detail_page.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -23,28 +23,32 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.white,
         title: const Text(
           '감정 일기 달력',
           style: TextStyle(fontFamily: 'NanumPen', fontSize: 24),
         ),
-        backgroundColor: Colors.green,
       ),
+      backgroundColor: Colors.white,
       body: Column(
         children: [
           TableCalendar(
             focusedDay: _focusedDay,
             firstDay: DateTime.utc(2023, 1, 1),
             lastDay: DateTime.utc(2030, 12, 31),
-            calendarStyle: CalendarStyle(
-              markerDecoration: const BoxDecoration(
-                  color: Colors.green, shape: BoxShape.circle),
-              todayDecoration: const BoxDecoration(
-                  color: Colors.lightGreen, shape: BoxShape.circle),
+            calendarStyle: const CalendarStyle(
+              markerDecoration: BoxDecoration(
+                color: Colors.green,
+                shape: BoxShape.circle,
+              ),
+              todayDecoration: BoxDecoration(
+                color: Colors.lightGreen,
+                shape: BoxShape.circle,
+              ),
             ),
             eventLoader: (day) {
-              return diaries.containsKey(day.toIso8601String().split('T')[0])
-                  ? [1]
-                  : [];
+              final dateKey = _formatDateKey(day);
+              return diaries.containsKey(dateKey) ? [1] : [];
             },
             selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
             onDaySelected: (selectedDay, focusedDay) {
@@ -52,15 +56,15 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 _selectedDay = selectedDay;
                 _focusedDay = focusedDay;
               });
-              final dateKey = selectedDay.toIso8601String().split('T')[0];
+
+              final dateKey = _formatDateKey(selectedDay);
               if (diaries.containsKey(dateKey)) {
-                _showDiaryDialog(context, diaries[dateKey]!);
-              } else {
+                // 선택한 날짜의 일기를 상세 페이지로 전달
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        WritePage(selectedEmotion: "기록 없음", date: dateKey),
+                        DiaryDetailPage(diary: diaries[dateKey]!),
                   ),
                 );
               }
@@ -71,19 +75,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     );
   }
 
-  void _showDiaryDialog(BuildContext context, Diary diary) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('감정: ${diary.emotion}'),
-        content: Text(diary.content),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('닫기'),
-          ),
-        ],
-      ),
-    );
+  String _formatDateKey(DateTime day) {
+    return '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
   }
 }
