@@ -25,7 +25,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         title: const Text(
-          '감정 일기 달력',
+          '달력',
           style: TextStyle(fontFamily: 'NanumPen', fontSize: 24),
         ),
       ),

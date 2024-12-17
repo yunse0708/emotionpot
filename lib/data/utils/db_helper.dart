@@ -8,7 +8,6 @@ class DBHelper {
   static Future<Database> get database async {
     if (_database != null) return _database!;
 
-    // 데이터베이스 초기화
     _database = await _initDB();
     return _database!;
   }
@@ -30,14 +29,12 @@ class DBHelper {
     );
   }
 
-  // 일기 추가
   static Future<void> insertDiary(Diary diary) async {
     final db = await database;
     await db.insert('diaries', diary.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  // 모든 일기 조회
   static Future<List<Diary>> fetchAllDiaries() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('diaries');
